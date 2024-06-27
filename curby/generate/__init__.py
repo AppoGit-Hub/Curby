@@ -1,0 +1,1 @@
+from .compilationsonggenerator import generate_compilation
