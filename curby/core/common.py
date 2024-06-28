@@ -1,4 +1,5 @@
 TEMP_FOLDER = "temp"
+REFRESH_TTL = 3600
 
 SPONSOR_CATEGORIES = [
     "sponsor",
