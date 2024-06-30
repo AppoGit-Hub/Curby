@@ -1,7 +1,14 @@
 from bs4 import BeautifulSoup, Tag
 from cachetools.func import ttl_cache
 
-from curby.core import request, REFRESH_TTL
+from curby.core import (
+    request, 
+    REFRESH_TTL,
+    generic_search
+)
+from curby.error import (
+    MusicBrainzError
+)
 
 def _extract_title(element: Tag):
     return list(element.children)[1].text.lower()
@@ -36,7 +43,7 @@ def _extract_songs_routes(soup: BeautifulSoup) -> list[str]:
     return list(map(lambda element : _extract_song_route(element), soup.select("tr")))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_artist_route(artist_name: str) -> str:
+def _get_artist_route(artist_name: str) -> str:
     """
     Scrap from the artist name get the artist route
     
@@ -62,7 +69,7 @@ def get_artist_route(artist_name: str) -> str:
     return _extract_route(BeautifulSoup(response.text, "html.parser"))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_artist_genres(artist_route: str) -> list[str]:
+def _get_artist_genres(artist_route: str) -> list[str]:
     """
     Scrap from the artist route the artist genres
 
@@ -88,7 +95,7 @@ def get_artist_genres(artist_route: str) -> list[str]:
     return _extract_artist_genres(BeautifulSoup(response.text, "html.parser"))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_songs_titles(artist_route: str) -> list[str]:
+def _get_songs_titles(artist_route: str) -> list[str]:
     """
     Scrap the artist songs titles from the artist route
 
@@ -114,7 +121,7 @@ def get_songs_titles(artist_route: str) -> list[str]:
     return _extract_titles(BeautifulSoup(response.text, "html.parser"))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_songs_routes(artist_route: str) -> list[str]:
+def _get_songs_routes(artist_route: str) -> list[str]:
     """
     Scrap from the artist route, the songs routes 
 
@@ -140,7 +147,7 @@ def get_songs_routes(artist_route: str) -> list[str]:
     return _extract_songs_routes(BeautifulSoup(response.text, "html.parser"))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_song_genres(song_route: str) -> list[str]:
+def _get_song_genres(song_route: str) -> list[str]:
     """
     Scrap the list of songs genres from the song route
 
@@ -164,3 +171,104 @@ def get_song_genres(song_route: str) -> list[str]:
     """
     response = request(f"https://musicbrainz.org/{song_route}")
     return _extract_song_genres(BeautifulSoup(response.text, "html.parser"))
+
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_all_songs(artist_name: str) -> list[tuple[str, str]]:
+    """
+    Get all the songs as a pair title, route from the artist name
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+
+    Return
+    ------
+    a list of pair of title, route
+
+    Example
+    -------
+    >>> .get_all_songs("ariana grande")
+    >>> [('my everything', '/release-group/1237b040-fb8f-4f23-8000-fb6909486c83'), ('dangerous woman', '/release-group/17fd3576-b584-4f32-8ff0-12206d4cb66c'), ... ]
+    
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        artist_route: str = _get_artist_route(artist_name)
+        songs_titles: list[str] = _get_songs_titles(artist_route)
+        songs_routes: list[str] = _get_songs_routes(artist_route)
+        return list(zip(songs_titles, songs_routes))
+    except Exception as error:
+        print(error)
+        raise MusicBrainzError()
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_artist_genres(artist_name: str) -> list[str]:
+    """
+    Get all artist genres from the artist name
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+
+    Return
+    ------
+    the list of the artist genres
+
+    Example
+    -------
+    >>> .get_artist_genres("ariana grande")
+    >>> ['pop', 'r&b', 'trap soul', 'dance-pop', 'trap']
+
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        artist_route: str = _get_artist_route(artist_name)
+        artist_genres: list[str] = _get_artist_genres(artist_route)
+        return artist_genres
+    except Exception as error:
+        print(error)
+        raise MusicBrainzError()
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_song_genres(artist_name: str, song_title: str) -> list[tuple[str, str]]:
+    """
+    Get all the genres of a song from the  artist name and song title
+
+    Paramter
+    --------
+    artist_name : str
+        the artist name
+    song_title : str
+        the song title
+    
+    Return
+    ------
+    the list of genres of the song
+
+    Example
+    -------
+    >>> .get_song_genres("ariana grande", "my everything")
+    >>> ['pop', 'contemporary r&b', 'dance-pop', 'ballad', 'hip hop']
+    
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        artist_route: str = _get_artist_route(artist_name)
+        songs_titles: list[str] = _get_songs_titles(artist_route)
+        songs_routes: list[str] = _get_songs_routes(artist_route)
+        songs: list[tuple[str, str]] = list(zip(songs_titles, songs_routes))
+        search_index: int = generic_search(songs, lambda element: element[0] == song_title)
+        title, route = songs[search_index]
+        return  _get_song_genres(route)
+    except Exception as error:
+        print(error)
+        raise MusicBrainzError()

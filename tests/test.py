@@ -1,6 +1,6 @@
 from curby.core import FrameMetadata, Song
 from curby.gather.binder import get_song
-from curby.gather.controller import billboardcontroller
+from curby.gather.service import billboardservice
 from curby.generate import generate_compilation
 
 theme = FrameMetadata(
@@ -15,7 +15,7 @@ theme = FrameMetadata(
     "> "
 )
 
-songs: list[tuple[str, str]] = billboardcontroller.get_popular()
+songs: list[tuple[str, str]] = billboardservice.get_popular()
 all_songs: list[Song] = []
 for author, title in songs:
     try:

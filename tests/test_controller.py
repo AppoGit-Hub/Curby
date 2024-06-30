@@ -1,4 +1,4 @@
-from curby.gather.controller import billboardcontroller
+from curby.gather.service import billboardservice
 
 def test_controller():
-    assert(len(billboardcontroller.get_popular(1)) == 1)
+    assert(len(billboardservice.get_popular(1)) == 1)

@@ -4,7 +4,14 @@ from bs4 import BeautifulSoup, Tag
 from requests import Response
 from cachetools.func import ttl_cache
 
-from curby.core import request, REFRESH_TTL
+from curby.core import (
+    request, 
+    REFRESH_TTL,
+    generic_search
+)
+from curby.error import (
+    FreeMidiError
+)
 
 FREEMIDI_HEADER = {
     "User-Agent": "Chrome/121.0.0.0"
@@ -43,7 +50,7 @@ def _extract_song_routes(soup: BeautifulSoup):
 
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_names(letter: str) -> list[str]:
+def _get_names(letter: str) -> list[str]:
     """
     Scrap freemidi.org to get list the all artists' names that begins by the letter <letter>
 
@@ -69,7 +76,7 @@ def get_names(letter: str) -> list[str]:
     return _extract_names(BeautifulSoup(response.text, 'html.parser'))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_routes(letter: str) -> list[str]:
+def _get_routes(letter: str) -> list[str]:
     """
     Scrap the all routes of the artirts that beginings with the letter <letter>
 
@@ -95,7 +102,7 @@ def get_routes(letter: str) -> list[str]:
     return _extract_routes(BeautifulSoup(response.text, 'html.parser'))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_download_route(song_route: str) -> list[str]:
+def _get_download_route(song_route: str) -> list[str]:
     """
     Scrap freemidi.org to get the download route from the song route
 
@@ -121,7 +128,7 @@ def get_download_route(song_route: str) -> list[str]:
     return _extract_download_route(BeautifulSoup(response.text, 'html.parser'))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_cookie(song_route: str) -> str:
+def _get_cookie(song_route: str) -> str:
     """
     Scrap freemidi.org to get the cookie from the song route 
     
@@ -147,7 +154,7 @@ def get_cookie(song_route: str) -> str:
     return _extract_cookie(response)
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_song_titles(artist_route: str) -> list[str]:
+def _get_song_titles(artist_route: str) -> list[str]:
     """
     Scrap freemidi.org to get a the songs list from the artist_route
 
@@ -172,7 +179,7 @@ def get_song_titles(artist_route: str) -> list[str]:
     return _extract_song_titles(BeautifulSoup(response.text, 'html.parser'))
 
 @ttl_cache(ttl=REFRESH_TTL)
-def get_song_routes(artist_route: str) -> list[str]:
+def _get_song_routes(artist_route: str) -> list[str]:
     """
     Scrap a list songs routes from the artist route
 
@@ -195,4 +202,142 @@ def get_song_routes(artist_route: str) -> list[str]:
     This function is cached
     """
     response = request(f"https://freemidi.org/{artist_route}", header=FREEMIDI_HEADER)
-    return _extract_song_routes(BeautifulSoup(response.text, 'html.parser'))       
+    return _extract_song_routes(BeautifulSoup(response.text, 'html.parser'))
+
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_artist_route(artist_name: str) -> str:
+    """
+    From the artist name get the artist route
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+
+    Return
+    ------
+    artists_route : str
+        the artist route 
+
+    Example
+    -------
+    >>> get_artist_route("ariana grande")
+    >>> "artist-1751-ariana-grande"
+
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        artists_names: list[str] = _get_names(artist_name[0])
+        artists_routes: list[str] = _get_routes(artist_name[0])
+        artists: list[tuple[str, str]] = list(zip(artists_names, artists_routes))
+        find_index: int = generic_search(artists, lambda element: element[0] == artist_name)
+        artists_name, artists_route = artists[find_index]
+        return artists_route
+    except Exception as error:
+        print(error)
+        raise FreeMidiError()
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_song_route(artist_name: str, song_title: str) -> str:
+    """
+    From the artist name and the song title get the song route
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+    song_title : str
+        the song title
+    
+    Return
+    ------
+    the song route
+
+    Example
+    -------
+    >>> get_song_route("ariana grande", "pov")
+    >>> download3-26867-pov-ariana-grande
+
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        artist_route: str = get_artist_route(artist_name)
+        songs_titles: list[str] = _get_song_titles(artist_route)
+        songs_routes: list[str] = _get_song_routes(artist_route)
+        songs: list[tuple[str, str]] = list(zip(songs_titles, songs_routes))
+        find_index: int = generic_search(songs, lambda element: element[0] == song_title)
+        title, song_route = songs[find_index]
+        return song_route
+    except Exception as error:
+        print(error)
+        raise FreeMidiError()
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_download_route(artist_name: str, song_title: str) -> str:
+    """
+    From the artist name and the song title get the download route
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+    song_title : str
+        the song title
+
+    Return
+    ------
+    the download route
+
+    Example
+    -------
+    >>> get_download_route("ariana grande", "pov")
+    >>> getter-26867
+
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        song_route: str = get_song_route(artist_name, song_title)
+        download_route: str = _get_download_route(song_route)
+        return download_route
+    except Exception as error:
+        print(error)
+        raise FreeMidiError()
+
+@ttl_cache(ttl=REFRESH_TTL)
+def get_cookie(artist_name: str, song_title: str) -> str:
+    """
+    From the artist name and the song title get the cookie
+
+    Parameter
+    ---------
+    artist_name : str
+        the artist name
+    song_title : str
+        the song title
+
+    Return
+    ------
+    the cookie
+
+    Example
+    -------
+    >>> get_cookie("ariana grande", "pov")
+    >>> PHPSESSID=gmcrphc99ms4jvhoplvst0pem6; path=/
+    
+    Note
+    ----
+    This function is cached
+    """
+    try:
+        song_route: str = get_song_route(artist_name, song_title)
+        return _get_cookie(song_route)
+    except Exception as error:
+        print(error)
+        raise FreeMidiError()

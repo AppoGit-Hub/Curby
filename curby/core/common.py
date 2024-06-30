@@ -1,5 +1,6 @@
 TEMP_FOLDER = "temp"
 REFRESH_TTL = 3600
+MAX_TASKS = 16
 
 SPONSOR_CATEGORIES = [
     "sponsor",

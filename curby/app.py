@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 
 from curby.core import FrameMetadata
 import curby.api as api

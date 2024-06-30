@@ -58,12 +58,12 @@ def search_video(search_text: str):
     return results['result'][0]['id']
 
 def download_audio(url: str, save_as: str):
-    temp_fullpath = os.path.join(".\\", TEMP_FOLDER)
+    temp_fullpath: str = os.path.join(".\\", TEMP_FOLDER)
     if not os.path.exists(temp_fullpath):
         os.makedirs(temp_fullpath)
 
-    audio_filename = "{filename}.mp3".format(filename=save_as)
-    audio_filepath = os.path.join(TEMP_FOLDER, audio_filename)
+    audio_filename: str = "{filename}.mp3".format(filename=save_as)
+    audio_filepath: str = os.path.join(TEMP_FOLDER, audio_filename)
     if os.path.exists(audio_filepath):
         print("Skiping audio download : file already exist")
     else:
@@ -72,16 +72,16 @@ def download_audio(url: str, save_as: str):
         audio_stream.download(output_path=TEMP_FOLDER, filename=audio_filename)
     return audio_filepath
 
-def create_frame_section(frame_np, audio_clip: AudioFileClip):
+def create_frame_section(frame_np: np.ndarray, audio_clip: AudioFileClip):
     image_clip = ImageClip(frame_np, duration=audio_clip.duration)
     return image_clip.set_audio(audio_clip)
 
 def generate_audio(search_text: str) -> AudioFileClip:
-    SPONSORSERVICE_CLIENT = Client()
+    client = Client()
     video_id: str = search_video(search_text)
     audio_filepath: str = download_audio(f"https://www.youtube.com/watch?v={video_id}", search_text)
     audio_clip = AudioFileClip(audio_filepath)
-    sponsors: list = [] #SPONSORSERVICE_CLIENT.get_skip_segments(video_id,  SPONSOR_CATEGORIES)
+    sponsors: list = [] #client.get_skip_segments(video_id,  SPONSOR_CATEGORIES)
     if (sponsors is not None and len(sponsors) > 0):
         audio_clip = remove_sponsors(audio_clip, sponsors)
     return audio_clip
